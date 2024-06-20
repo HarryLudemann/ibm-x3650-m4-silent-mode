@@ -29,3 +29,10 @@ Important value you can change is :
 - `min_temp=40`
 - `max_temp=80`
 and the `fan_speed` function in the `else` block to match your custom curve.
+
+## Any impact in the perfs ?
+
+No it shouldn't take much resources on your server : 
+
+https://github.com/shiipou/ibm-x3650-m4-silent-mode/assets/38187238/503beb20-0d7c-4e77-8761-82d2327bd782
+
