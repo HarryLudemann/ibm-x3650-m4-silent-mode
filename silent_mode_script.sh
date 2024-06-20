@@ -19,7 +19,7 @@ while true; do
   done
 
   # Define temperature range
-  min_temp=40  # Minimum temperature for fan control
+  min_temp=35  # Minimum temperature for fan control
   max_temp=80  # Maximum temperature for fan control
 
   # Calculate fan speed as a percentage
