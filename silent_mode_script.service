@@ -1,0 +1,13 @@
+[Unit]
+Description=Set dynamic fan speed based on CPU temperature
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/silent_mode_script.sh
+ExecStop=/bin/true
+Restart=always
+RestartSec=10
+User=root
+
+[Install]
+WantedBy=multi-user.target
