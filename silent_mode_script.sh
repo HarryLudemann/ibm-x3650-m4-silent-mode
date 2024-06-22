@@ -1,5 +1,8 @@
 #!/bin/bash
 
+ipmi_output=$(ipmitool sdr 2>/dev/null)
+fan_zones=($(echo "$ipmi_output" | grep 'Fan [0-9][A-Z] Tach' | awk -F'|' '{print $1}' | awk '{print $2}'))
+
 while true; do
   ipmi_output=$(ipmitool sdr 2>/dev/null)
   cpu_output=$(echo "$ipmi_output" | grep -i "CPU .* Temp")
@@ -19,7 +22,7 @@ while true; do
   done
 
   # Define temperature range
-  min_temp=35  # Minimum temperature for fan control
+  min_temp=30  # Minimum temperature for fan control
   max_temp=80  # Maximum temperature for fan control
 
   # Calculate fan speed as a percentage
@@ -40,8 +43,13 @@ while true; do
   fan_speed_hex=$(printf '%02x' $fan_speed)
 
   # Set fan speed using ipmitool
-  sudo ipmitool raw 0x3a 0x07 0x01 0x$fan_speed_hex 0x01 > /dev/null 2>&1
-  sudo ipmitool raw 0x3a 0x07 0x02 0x$fan_speed_hex 0x01 > /dev/null 2>&1
+  i=0
+  for fan_zone in "${fan_zones[@]}"; do
+    if [[ "$fan_zone" == *A ]]; then
+      i=$((i+1))
+      sudo ipmitool raw 0x3a 0x07 0x0${i} 0x$fan_speed_hex 0x01 > /dev/null 2>&1 &
+    fi
+  done
 
   # Apply the changes
   sudo ipmitool raw 0x3a 0x06 > /dev/null 2>&1
