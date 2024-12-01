@@ -9,8 +9,15 @@ You can run the following steps to install the script and made it run at startup
 # Download the script
 sudo curl -fsSLo /usr/local/bin/silent_mode_script.sh https://raw.githubusercontent.com/harryludemann/ibm-x3650-m4-silent-mode/main/silent_mode_script.sh
 
+# Mark Executable
+sudo chmod +x /usr/local/bin/silent_mode_script.sh
+
 # Download the service definition
 sudo curl -fsSLo /etc/systemd/system/silent_mode_script.service https://raw.githubusercontent.com/harryludemann/ibm-x3650-m4-silent-mode/main/silent_mode_script.service
+
+# Make ipmitool password-less sudo by adding the line to visudo
+sudo visudo
+root ALL=(ALL) NOPASSWD: /usr/bin/ipmitool
 
 # Reload systemctl scripts
 sudo systemctl daemon-reload

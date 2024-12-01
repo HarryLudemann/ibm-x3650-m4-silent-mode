@@ -108,12 +108,12 @@ while true; do
   for fan_zone in "${fan_zones[@]}"; do
     if [[ "$fan_zone" == *A ]]; then
       ((i++))
-      sudo ipmitool raw 0x3a 0x07 0x0${i} 0x$fan_speed_hex 0x01 &> /dev/null
+      ipmitool raw 0x3a 0x07 0x0${i} 0x$fan_speed_hex 0x01 &> /dev/null
     fi
   done
 
   # Apply the changes
-  sudo ipmitool raw 0x3a 0x06 &> /dev/null
+  ipmitool raw 0x3a 0x06 &> /dev/null
 
   # Sleep to reduce CPU usage
   sleep 5
