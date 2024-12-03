@@ -1,28 +1,10 @@
 #!/bin/bash
 
-# Function to display status in a clean and user-friendly format
-display_status() {
-  local temperatures="$1"
-  local max_temp="$2"
-  local fan_speed="$3"
-
-  echo "-------------------------------------------"
-  echo " System Fan Control Status"
-  echo "-------------------------------------------"
-  echo "CPU Temperatures: $temperatures"
-  echo "Maximum CPU Temperature: ${max_temp}°C"
-  echo "Calculated Fan Speed: $fan_speed (0-255 scale)"
-  echo "Fan Speed Hexadecimal: 0x$(printf '%02x' "$fan_speed")"
-  echo "-------------------------------------------"
-  echo "Last Updated: $(date '+%Y-%m-%d %H:%M:%S')"
-  echo "-------------------------------------------"
-}
-
 # Function to get fan zones
 get_fan_zones() {
   local output
   if ! output=$(ipmitool sdr 2>/dev/null); then
-    echo "Error: Failed to retrieve IPMI sensor data."
+    echo "Error: Failed to retrieve IPMI sensor data." >&2
     exit 1
   fi
 
@@ -38,7 +20,7 @@ get_fan_zones() {
 # Get fan zones at the beginning
 fan_zones=($(get_fan_zones))
 if [[ ${#fan_zones[@]} -eq 0 ]]; then
-  echo "Error: No fan zones found."
+  echo "Error: No fan zones found." >&2
   exit 1
 fi
 
@@ -47,13 +29,16 @@ MIN_TEMP=30  # Minimum temperature
 MAX_TEMP=80  # Maximum temperature
 
 # Introduce a scaling factor (adjust between 0.0 and 1.0)
-SCALING_FACTOR=0.3  # 70% of the calculated fan speed
+SCALING_FACTOR=0.3  # 30% of the calculated fan speed
+
+# Reduce update frequency to save CPU
+SLEEP_INTERVAL=15  # Update every 15 seconds
 
 while true; do
   # Get IPMI sensor data (temperature only)
   if ! ipmi_output=$(ipmitool sdr type temperature 2>/dev/null); then
-    echo "Error: Failed to retrieve IPMI sensor data."
-    sleep 5
+    echo "Warning: Failed to retrieve IPMI sensor data." >&2
+    sleep $SLEEP_INTERVAL
     continue
   fi
 
@@ -69,8 +54,8 @@ while true; do
   done <<< "$ipmi_output"
 
   if [[ ${#cpu_temps[@]} -eq 0 ]]; then
-    echo "Error: No CPU temperatures found."
-    sleep 5
+    echo "Warning: No CPU temperatures found." >&2
+    sleep $SLEEP_INTERVAL
     continue
   fi
 
@@ -98,8 +83,6 @@ while true; do
     fan_speed=255
   fi
 
-  display_status "${cpu_temps[*]}" "$max_temp" "$fan_speed"
-
   # Convert fan speed to hexadecimal
   fan_speed_hex=$(printf '%02x' "$fan_speed")
 
@@ -116,5 +99,5 @@ while true; do
   ipmitool raw 0x3a 0x06 &> /dev/null
 
   # Sleep to reduce CPU usage
-  sleep 5
+  sleep $SLEEP_INTERVAL
 done
