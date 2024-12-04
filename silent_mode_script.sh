@@ -28,11 +28,17 @@ fi
 MIN_TEMP=30  # Minimum temperature
 MAX_TEMP=80  # Maximum temperature
 
-# Introduce a scaling factor (adjust between 0.0 and 1.0)
-SCALING_FACTOR=0.3  # 30% of the calculated fan speed
+# Scaling factor for fan control
+SCALING_FACTOR=0.2  # 20% of the calculated fan speed
+
+# Hysteresis settings
+HYSTERESIS=2  # Temperature difference to avoid rapid fan speed changes
 
 # Reduce update frequency to save CPU
 SLEEP_INTERVAL=15  # Update every 15 seconds
+
+# Previous fan speed to apply hysteresis
+prev_fan_speed=-1
 
 while true; do
   # Get IPMI sensor data (temperature only)
@@ -65,13 +71,15 @@ while true; do
     (( temp > max_temp )) && max_temp=$temp
   done
 
-  # Calculate fan speed (0-255 scale)
+  # Calculate fan speed using a non-linear (cubic) curve
   if (( max_temp <= MIN_TEMP )); then
     fan_speed=0
   elif (( max_temp >= MAX_TEMP )); then
     fan_speed=255
   else
-    raw_speed=$(( (max_temp - MIN_TEMP) * 255 / (MAX_TEMP - MIN_TEMP) ))
+    # Cubic scaling for smoother fan speed control
+    temp_ratio=$(echo "scale=4; ($max_temp - $MIN_TEMP) / ($MAX_TEMP - $MIN_TEMP)" | bc)
+    raw_speed=$(echo "scale=0; 255 * ($temp_ratio ^ 3)" | bc)
     scaled_speed=$(echo "$raw_speed * $SCALING_FACTOR" | bc)
     fan_speed=${scaled_speed%.*}  # Remove decimal part
   fi
@@ -81,6 +89,15 @@ while true; do
     fan_speed=0
   elif (( fan_speed > 255 )); then
     fan_speed=255
+  fi
+
+  # Apply hysteresis to prevent rapid fan changes
+  if (( prev_fan_speed != -1 )); then
+    if (( fan_speed > prev_fan_speed && fan_speed - prev_fan_speed < HYSTERESIS )); then
+      fan_speed=$prev_fan_speed
+    elif (( fan_speed < prev_fan_speed && prev_fan_speed - fan_speed < HYSTERESIS )); then
+      fan_speed=$prev_fan_speed
+    fi
   fi
 
   # Convert fan speed to hexadecimal
@@ -97,6 +114,9 @@ while true; do
 
   # Apply the changes
   ipmitool raw 0x3a 0x06 &> /dev/null
+
+  # Store the previous fan speed
+  prev_fan_speed=$fan_speed
 
   # Sleep to reduce CPU usage
   sleep $SLEEP_INTERVAL
