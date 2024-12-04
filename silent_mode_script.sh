@@ -29,16 +29,19 @@ MIN_TEMP=30  # Minimum temperature
 MAX_TEMP=80  # Maximum temperature
 
 # Scaling factor for fan control
-SCALING_FACTOR=0.2  # 20% of the calculated fan speed
+SCALING_FACTOR=0.4  # Increase to 40% of the calculated fan speed to avoid warnings
 
 # Hysteresis settings
-HYSTERESIS=2  # Temperature difference to avoid rapid fan speed changes
+HYSTERESIS=5  # Increase hysteresis to 5 degrees to prevent rapid fan speed changes
 
 # Reduce update frequency to save CPU
 SLEEP_INTERVAL=15  # Update every 15 seconds
 
 # Previous fan speed to apply hysteresis
 prev_fan_speed=-1
+
+# Adjustable minimum fan speed
+MIN_FAN_SPEED=20
 
 while true; do
   # Get IPMI sensor data (temperature only)
@@ -73,7 +76,7 @@ while true; do
 
   # Calculate fan speed using a non-linear (cubic) curve
   if (( max_temp <= MIN_TEMP )); then
-    fan_speed=0
+    fan_speed=$MIN_FAN_SPEED  # Set a minimum fan speed to avoid warnings
   elif (( max_temp >= MAX_TEMP )); then
     fan_speed=255
   else
@@ -84,9 +87,9 @@ while true; do
     fan_speed=${scaled_speed%.*}  # Remove decimal part
   fi
 
-  # Ensure fan_speed is within 0-255
-  if (( fan_speed < 0 )); then
-    fan_speed=0
+  # Ensure fan_speed is within MIN_FAN_SPEED-255 to avoid fan failure warnings
+  if (( fan_speed < MIN_FAN_SPEED )); then
+    fan_speed=$MIN_FAN_SPEED
   elif (( fan_speed > 255 )); then
     fan_speed=255
   fi
@@ -106,10 +109,8 @@ while true; do
   # Set fan speed for each applicable fan zone
   i=0
   for fan_zone in "${fan_zones[@]}"; do
-    if [[ "$fan_zone" == *A ]]; then
-      ((i++))
-      ipmitool raw 0x3a 0x07 0x0${i} 0x$fan_speed_hex 0x01 &> /dev/null
-    fi
+    i=$((i + 1))
+    ipmitool raw 0x3a 0x07 0x0${i} 0x$fan_speed_hex 0x01 &> /dev/null
   done
 
   # Apply the changes
